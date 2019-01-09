@@ -1,49 +1,576 @@
 <!doctype html>
 <html>
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-		<title>reveal.js</title>
+    <title>Making JPA great again</title>
 
-		<link rel="stylesheet" href="css/reveal.css">
-		<link rel="stylesheet" href="css/theme/black.css">
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/Fork-Awesome-1.1.0/css/fork-awesome.min.css">
+    <link rel="stylesheet" href="css/theme/cosium.css">
 
-		<!-- Theme used for syntax highlighting of code -->
-		<link rel="stylesheet" href="lib/css/zenburn.css">
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
 
-		<!-- Printing and PDF exports -->
-		<script>
-			var link = document.createElement( 'link' );
-			link.rel = 'stylesheet';
-			link.type = 'text/css';
-			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
-			document.getElementsByTagName( 'head' )[0].appendChild( link );
-		</script>
-	</head>
-	<body>
-		<div class="reveal">
-			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
-			</div>
-		</div>
+    <!-- Printing and PDF exports -->
+    <script>
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = window.location.search.match(/print-pdf/gi) ? 'css/print/pdf.css' : 'css/print/paper.css';
+        document.getElementsByTagName('head')[0].appendChild(link);
+    </script>
+</head>
+<body>
+<div class="reveal">
+    <div class="slides">
+        <section id="start" data-background="materials/backgound_cosium_fiber.jpg">
+            <h3 style="padding-top: 150px; text-align: right">Making JPA great again</h3>
+            <img src="materials/LogoBJCP20150500x0200.png" height="100"/>
+        </section>
+        <section id="julien">
+            <h2>Réda Housni Alaoui</h2>
+            <ul>
+                <li>Coding Architect @Cosium</li>
+                <li>OSS Contributor</li>
+                <li>Github: <a href="https://github.com/reda-alaoui" target="_blank">reda-alaoui</a></li>
+            </ul>
+        </section>
+        <section id="cosium">
+            <h2>Cosium</h2>
+            <ul>
+                <li>SaaS editor, LIR, Health sector, International</li>
+                <li>Engineers company, strong technical skills</li>
+                <li>Java, Web, TypeScript, PostgreSQL, Linux, 3D, hardware,...</li>
+                <li>Software factory: IntelliJ, Maven, Git, Jenkins, Jira, SonaQube, Archiva... Gerrit and Vet!</li>
+            </ul>
+            <p>
+                <small>We're hiring</small>
+            </p>
+        </section>
 
-		<script src="lib/js/head.min.js"></script>
-		<script src="js/reveal.js"></script>
+        <section id="agenda">
+            <h2>How to</h2>
+            <ul>
+                <li>Tackle JPA verbosity</li>
+                <li>Eliminate useless joins</li>
+                <li>Avoid N+1 query issue</li>
+            </ul>
+        </section>
 
-		<script>
-			// More info about config & dependencies:
-			// - https://github.com/hakimel/reveal.js#configuration
-			// - https://github.com/hakimel/reveal.js#dependencies
-			Reveal.initialize({
-				dependencies: [
-					{ src: 'plugin/markdown/marked.js' },
-					{ src: 'plugin/markdown/markdown.js' },
-					{ src: 'plugin/notes/notes.js', async: true },
-					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
-				]
-			});
-		</script>
-	</body>
+        <section id="jpa">
+            <h2>JPA</h2>
+            <ul>
+                <li>Java Persistence API</li>
+                <li>Version 1.0 released in 2006</li>
+                <li>Implemented by Object-relational mapping libs:
+                    <ul>
+                        <li>Hibernate</li>
+                        <li>EclipseLink</li>
+                        <li>OpenJPA</li>
+                        <li>...</li>
+                    </ul>
+                </li>
+            </ul>
+        </section>
+
+        <section id="jpa-playground">
+            <h2>Our JPA playground</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>JPA</th>
+                    <th>SQL (Postgres)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+<pre><code class="hljs java" data-trim>
+@Entity
+public class Author {
+  @Id
+  private long id;
+  private String name;
+}
+</code></pre>
+                    </td>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+create table Author (
+  id bigserial primary key, 
+  name varchar
+);
+</code></pre>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+<pre><code class="hljs java" data-trim>
+@Entity
+public class Book {
+  @Id
+  private long id;
+  private String title;
+  // Association
+  @ManyToOne
+  private Author author;
+}
+</code></pre>
+                    </td>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+create table Book (
+  id bigserial primary key, 
+  title varchar, 
+  author_id bigint references author(id) not null
+);
+					</code></pre>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+        </section>
+
+        <section id="jpa-verbosity">
+            <h2>JPA semantic is cumbersome</h2>
+            <pre><code class="hljs java" data-trim>
+// Let's print all books titles
+    
+// Begin JPA plumbing    
+CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+CriteriaQuery cq = cb.createQuery(Book.class);
+entityManager
+    .createQuery(cq)
+// End JPA plumbing    
+    .getResultList()
+    .forEach(Book::printTitle);
+    
+// And we did not yet introduce pagination    
+</code></pre>
+        </section>
+
+        <section id="spring-data">
+            <h2>Spring Data to the rescue !</h2>
+            <blockquote cite="https://spring.io/projects/spring-data">
+                [Spring Data] makes it easy to use data access technologies, relational and non-relational databases,
+                map-reduce frameworks, and cloud-based data services
+            </blockquote>
+        </section>
+
+        <section id="spring-data-details">
+            <h2>Spring Data</h2>
+            <ul>
+                <li>Supports JPA via Spring Data JPA project</li>
+                <li>Centered around the concept of repository</li>
+                <li>A repository is a facade over a data source</li>
+            </ul>
+        </section>
+
+        <section id="book-repository">
+            <h2>Introducing the BookRepository</h2>
+            <pre><code class="hljs java" data-trim>
+public interface BookRepository extends CrudRepository&lt;Book, Long&gt; {}
+</code></pre>
+            <pre><code class="hljs java" data-trim>
+bookRepository
+  .findAll()
+  .forEach(Book::printTitle);
+// Pretty neat :)  
+</code></pre>
+
+            <table>
+                <thead>
+                <tr>
+                    <th>Actual query</th>
+                    <th></th>
+                    <th>Expected query</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title, 
+    author.name 
+from book 
+join author 
+    on author.id = book.author_id; 
+</code></pre>
+                    </td>
+                    <td style="vertical-align: middle; color: red">
+                        !=
+                    </td>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+from book;
+</code></pre>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="jpa-associations-fetch">
+            <h2>JPA associations fetch type</h2>
+            <ul>
+                <li>
+                    Possible values:
+                    <ul>
+                        <li>EAGER</li>
+                        <li>LAZY</li>
+                    </ul>
+                </li>
+                <li>@ManyToOne defaults to EAGER fetching</li>
+            </ul>
+
+            <pre><code class="hljs java" data-trim>
+@Entity
+public class Book {
+  // ...
+  @ManyToOne(/* default to fetch = EAGER */)
+  private Author author;
+  // ...  
+}
+</code></pre>
+
+        </section>
+
+        <section id="book-repository-default-lazy">
+            <h2>Lazy loading Book's Author</h2>
+            <pre><code class="hljs java" data-trim>
+@Entity
+public class Book {
+  // id + title omitted
+  @ManyToOne(fetch = LAZY)
+  private Author author;
+}
+</code></pre>
+            <pre><code class="hljs java" data-trim>
+bookRepository
+  .findAll()
+  .forEach(Book::printTitle);
+</code></pre>
+            <table>
+                <thead>
+                <tr>
+                    <th>Actual query</th>
+                    <th></th>
+                    <th>Expected query</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+from book;
+</code></pre>
+                    </td>
+                    <td style="vertical-align: middle; color:green">
+                        ==
+                    </td>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+from book;
+</code></pre>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="n-plus-one-query-issue">
+            <h2>N+1 query issue</h2>
+            <pre><code class="hljs java" data-trim>
+bookRepository
+  .findAll()
+  .forEach(book -> {
+    book.printTitle();
+    book.printAuthorName();
+  });
+</code></pre>
+            <table>
+                <thead>
+                <tr>
+                    <th>Actual query</th>
+                    <th></th>
+                    <th>Expected query</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select book.id, 
+       book.title, 
+       book.author_id
+from book;
+select author.name 
+    from author 
+    where author.id = 1;    
+select author.name 
+    from author 
+    where author.id = 2;
+</code></pre>
+                    </td>
+                    <td style="vertical-align: middle; color:red">
+                        !=
+                    </td>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+    author.name
+from book
+join author
+    on book.author_id = author.id;
+</code></pre>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+            <p>We need to select fetching behaviour at runtime</p>
+        </section>
+
+        <section id="entity-graph">
+            <h2>JPA EntityGraph to the rescue !</h2>
+            <ul>
+                <li>Introduced in JPA 2.1</li>
+                <li>Runtime fetch type</li>
+                <li>Describes a graph of the entities that will be eagerly fetched</li>
+                <li>Can be defined programmatically or by annotation</li>
+            </ul>
+        </section>
+
+        <section id="book-entity-graph">
+            <h2>book-with-author entity graph</h2>
+            <pre><code class="hljs java" data-trim>
+@Entity
+@NamedEntityGraphs({
+  @NamedEntityGraph(
+    name = "book-with-author",
+    attributeNodes = {
+      @NamedAttributeNode("author")
+    }
+  )
+})    
+public class Book {
+  // id + title omitted
+  @ManyToOne(fetch = LAZY)
+  private Author author;
+}
+</code></pre>
+        </section>
+
+        <section id="applying-entity-graph-to-repository">
+            <h2>Applying book-with-author to the query</h2>
+            <pre><code class="hljs java" data-trim>
+public interface BookRepository extends CrudRepository&lt;Book, Long&gt; {
+    @EntityGraph("book-with-author") // Can't be passed dynamically
+    List&lt;Book&gt; findAll();    
+}
+</code></pre>
+            <pre><code class="hljs java" data-trim>
+bookRepository.findAll().forEach(book -> {
+    book.printTitle();
+    book.printAuthorName();
+  });
+</code></pre>
+            <table>
+                <thead>
+                <tr>
+                    <th>Actual query</th>
+                    <th></th>
+                    <th>Expected query</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+    author.name
+from book
+join author --...;
+</code></pre>
+                    </td>
+                    <td style="vertical-align: middle; color:green">
+                        ==
+                    </td>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+    author.name
+from book
+join author --...;
+</code></pre>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="spring-data-neutralizes-entity-graph">
+            <h2>Spring Data neutralizes EntityGraph</h2>
+            <ul>
+                <li>Forces us to choose the EntityGraph before compilation</li>
+                <li>Makes a repository method forever bound to a unique EntityGraph</li>
+                <li>Removes the EntityGraph dynamic aspect</li>
+                <li><a href="https://jira.spring.io/browse/DATAJPA-749" target="_blank">DATAJPA-749 Context enabled JPA
+                    2.1 EntityGraph</a> issue closed as won't fix
+                </li>
+            </ul>
+        </section>
+
+        <section id="spring-data-jpa-entity-graph">
+            <h2>spring-data-jpa-entity-graph to the rescue !</h2>
+            <ul>
+                <li><a href="https://github.com/Cosium/spring-data-jpa-entity-graph" target="_blank">github.com/Cosium/spring-data-jpa-entity-graph</a>
+                </li>
+                <li>Spring Data JPA extension</li>
+                <li>Pass EntityGraph as argument to <u><b>ANY</b></u> repository method</li>
+            </ul>
+            <pre><code class="hljs java" data-trim>
+// The new BookRepository
+public interface BookRepository 
+    extends EntityGraphCrudRepository&lt;Book, Long&gt; {}
+</code></pre>
+        </section>
+
+        <section id="print-all-books-title-and-authors-names-final">
+            <h2>Printing all books titles and authors names one last time</h2>
+            <pre><code class="hljs java" data-trim>
+bookRepository
+  .findAll(EntityGraphs.named("book-with-author"))
+  .forEach(book -> {
+    book.printTitle();
+    book.printAuthorName();
+  });
+</code></pre>
+            <table>
+                <thead>
+                <tr>
+                    <th>Actual query</th>
+                    <th></th>
+                    <th>Expected query</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+    author.name
+from book
+join author --...;
+</code></pre>
+                    </td>
+                    <td style="vertical-align: middle; color:green">
+                        ==
+                    </td>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+    author.name
+from book
+join author --...;
+</code></pre>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="print-all-books-titles-and-authors-names-final">
+            <h2>Printing all books titles one last time</h2>
+            <pre><code class="hljs java" data-trim>
+bookRepository
+  .findAll()
+  .forEach(Book::printTitle);
+</code></pre>
+            <table>
+                <thead>
+                <tr>
+                    <th>Actual query</th>
+                    <th></th>
+                    <th>Expected query</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+from book;
+</code></pre>
+                    </td>
+                    <td style="vertical-align: middle; color:green">
+                        ==
+                    </td>
+                    <td>
+<pre><code class="hljs sql" data-trim>
+select 
+    book.id, 
+    book.title
+from book;
+</code></pre>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="end" data-background-video="materials/COSIUM_Logo2016_HD.mp4"></section>
+    </div>
+</div>
+
+<script src="lib/js/head.min.js"></script>
+<script src="js/reveal.js"></script>
+
+<script>
+    // More info about config & dependencies:
+    // - https://github.com/hakimel/reveal.js#configuration
+    // - https://github.com/hakimel/reveal.js#dependencies
+    Reveal.initialize({
+        dependencies: [
+            {src: 'plugin/markdown/marked.js'},
+            {src: 'plugin/markdown/markdown.js'},
+            {src: 'plugin/notes/notes.js', async: true},
+            {
+                src: 'plugin/highlight/highlight.js', async: true, callback: function () {
+                    hljs.initHighlightingOnLoad();
+                }
+            },
+            // Zoom in and out with Shift+click
+            {src: 'plugin/zoom-js/zoom.js', async: true}
+        ],
+        zoomKey: 'shift'
+    });
+</script>
+</body>
 </html>
